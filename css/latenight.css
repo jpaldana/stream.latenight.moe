@@ -1,0 +1,159 @@
+.chip {
+  display: inline-block;
+  padding: 0 25px;
+  height: 40px;
+  font-size: 14px;
+  line-height: 40px;
+  border-radius: 20px;
+  margin-left: 10px;
+}
+.chip img {
+  float: left;
+  margin: 0 12px 0 -25px;
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+  transform: scale(1.1);
+}
+
+.pointer:hover {
+  cursor: pointer;
+}
+
+a.nav-link i {
+  width: 18px;
+  text-align: center;
+}
+
+/*
+.bg-dark {
+  background-color: black !important;
+}
+*/
+
+.ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.breakable {
+  word-break: break-all;
+}
+
+#content {
+  margin-top: 96px;
+  margin-bottom: 64px;
+}
+#nav,
+.bg-black {
+  background-color: black !important;
+}
+.bg-black-glass {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+nav a.nav-link {
+  text-transform: lowercase;
+}
+
+#backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  /*
+  filter: blur(48px) brightness(35%);
+  */
+  filter: blur(24px) brightness(18%);
+}
+
+/* -- */
+
+.poster-container {
+  padding-bottom: 2em;
+  cursor: pointer;
+}
+.poster-image,
+.poster-container .poster-image {
+  background-size: cover;
+  background-position: center center;
+  position: relative;
+  background-image: url(images/blank-episode.jpg);
+}
+.poster-image:before,
+.poster-container .poster-image:before {
+  display: block;
+  content: "";
+  width: 100%;
+  padding-top: 147%;    /* maintain roughly 680x1000 ratio ~ (h/w*100) */
+}
+.poster-container .poster-image:hover {
+  transition: all 0.25s ease;
+  filter: brightness(60%);
+}
+.poster-container .poster-title {
+  font-weight: bold;
+  display: block;
+  margin-top: 0.5em;
+}
+.poster-container a {
+  text-decoration: none;
+}
+.poster-container a:hover {
+  text-decoration: underline;
+}
+
+/* -- */
+
+.episode-title,
+.episode-number {
+  display: block;
+}
+.thumb-container {
+  display: block;
+}
+.thumb-image {
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  position: relative;
+  background-image: url(images/blank-episode.jpg);
+}
+.thumb-image:before {
+  display: block;
+  content: "";
+  width: 100%;
+  padding-top: 56.25%;    /* maintain roughly 16:9 ratio ~ (h/w*100) */
+}
+.thumb-image:hover {
+  cursor: pointer;
+  transition: all 0.25s ease;
+  filter: brightness(60%);
+}
+
+/* -- */
+
+.player-tenant-image {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  top: 6px;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+[data-tenant] {
+  position: relative;
+  top: -3px;
+}
+
+#player-guide-container,
+#player-log-container {
+  height: 80vh;
+  overflow: auto;
+}

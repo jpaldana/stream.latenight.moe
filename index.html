@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="shortcut icon" href="/images/favicon.ico">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.4.3/plyr.css">
+    <link rel="stylesheet" href="https://unpkg.com/simplebar@latest/dist/simplebar.css" />
+    
+    <link rel="stylesheet" href="/css/latenight.css">
+
+    <title>stream</title>
+  </head>
+  <body class="bg-dark text-light">
+    <div id="backdrop" style="z-index: -100"></div>
+    <div id="content">
+      <div class="container mb-4">
+        <nav id="listing-nav" data-group="listing" class="navbar navbar-expand-lg navbar-dark bg-black-glass collapse">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Sort By
+              </a>
+              <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                <a class="dropdown-item listing-sort" href="#latest" data-sort="latest">Latest</a>
+                <a class="dropdown-item listing-sort" href="#alphabetical" data-sort="alphabetical">Alphabetical</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item listing-sort" href="#popularity" data-sort="popularity">Popularity</a>
+                <a class="dropdown-item listing-sort" href="#rating" data-sort="rating">Rating</a>
+              </div>
+            </li>
+          </ul>
+          <form class="form-inline my-2 my-lg-0">
+            <div class="input-group">
+              <input class="form-control bg-light" type="search" placeholder="Search" aria-label="Search" id="search" autocomplete="off">
+              <div class="input-group-append">
+                <div class="input-group-text bg-light"><i class="fa fa-search"></i></div>
+              </div>
+            </div>
+          </form>
+        </nav>
+        <nav id="generic-nav" data-group="generic" class="navbar navbar-expand-lg navbar-dark bg-black-glass collapse">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link text-white" href="/"><i class="fa fa-caret-left"></i> Return</a>
+            </li>
+          </ul>
+        </nav>
+        <nav id="player-nav" data-group="player" class="navbar navbar-expand-lg navbar-dark bg-black-glass collapse">
+          <div class="d-flex w-100">
+            <div class="mr-auto">
+              <a class="nav-link text-white" href="/"><i class="fa fa-caret-left"></i> Return</a>
+            </div>
+            <div>
+              <a class="nav-link text-muted" href="#" id="player-log"><i class="fa fa-comment"></i> Chat Log</a>
+            </div>
+            <div>
+              <a class="nav-link text-muted" href="#" id="player-guide"><i class="fa fa-bars"></i> Episode Guide</a>
+            </div>
+          </div>
+        </nav>
+      </div>
+      <div class="container">
+        <div id="listing" data-group="listing" class="row collapse">
+          <div class="w-100 text-center">
+            <i class="fa fa-spin fa-spinner display-4"></i>
+          </div>
+        </div>
+        <div id="info" data-group="info" class="row collapse">
+          <div class="col-12 col-md-3">
+            <div id="info-poster" class="poster-image shadow-lg"></div>
+          </div>
+          <div class="col-12 col-md-9">
+            <div class="bg-light text-dark p-4">
+              <h1 id="info-title" class="display-4"></h1>
+              <h5 id="info-title-alt" class="text-muted"></h5>
+              <h6 id="info-year"></h6>
+              <div class="d-flex my-2">
+                <div id="info-meta" class="mr-auto d-inline-block"></div>
+                <div id="info-genres" class="d-inline-block text-right"></div>
+              </div>
+              <div id="info-description" class="border-top pt-4 my-4"></div>
+            </div>
+          </div>
+          <div id="info-episode-guide" class="col-12 mt-4"></div>
+        </div>
+        <div id="player" data-group="player" class="collapse">
+          <div class="collapse" data-not-logged-in>
+            <div class="alert alert-danger align-middle" role="alert">
+              You must login in order to see this content.
+            </div>
+          </div>
+          <div class="row collapse" data-logged-in>
+            <div class="col-12" id="player-media-container">
+              <h5 data-episode-title>Episode Title</h5>
+              <video poster="" id="player-media" playsinline controls crossorigin class="w-100 embed-responsive embed-responsive-16by9"></video>
+              <form>
+                <div class="input-group input-group-sm mb-0">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text bg-black-glass text-light border-0 rounded-0"><span data-username></span> <i class="fa fa-caret-right ml-2"></i></span>
+                  </div>
+                  <input id="player-chat" class="border-0 rounded-0 form-control form-control-sm bg-black-glass text-light" type="text" placeholder="Say something..." autocomplete="off">
+                  <div class="input-group-append">
+                    <span class="input-group-text bg-black-glass text-light border-0 rounded-0" id="player-tenants"></span>
+                  </div>
+                </div>
+              </form>
+              <div class="w-100 d-flex">
+                <div class="mr-auto p-1">
+                  <small>
+                    <small class="text-muted">Legend:</small> 
+                    <small class="text-success mr-1" data-toggle="tooltip" title="This icon shows that the player is ready to begin.">
+                      <i class="fa fa-check"></i> ready
+                    </small>
+                    <small class="text-info mr-1" data-toggle="tooltip" title="This icon shows that the player is working normally.">
+                      <i class="fa fa-play"></i> playing
+                    </small>
+                    <small class="text-warning mr-1" data-toggle="tooltip" title="This icon may also show if there are network issues that are causing the player to stall and/or buffer.">
+                      <i class="fa fa-pause"></i> paused
+                    </small>
+                    <small class="text-danger mr-1" data-toggle="tooltip" title="This icon is shown when a user must interact with the page (i.e. click something) before the video can play.">
+                      <i class="fa fa-unlink"></i> broken / no interaction
+                    </small>
+                  </small>
+                </div>
+                <div>
+                  <small class="text-muted mr-2" data-episode-number></small>
+                  <a href="#" id="player-link" class="badge badge-dark p-2 mt-2" data-logged-in data-toggle="tooltip" title="Copy and paste the URL!"><i class="fa fa-link"></i> Watch with friends?</a>
+                </div>
+              </div>
+            </div>
+            <div class="col-3 collapse" id="player-guide-container"></div>
+            <div class="col-3 collapse" id="player-log-container">
+              <div class="text-center">
+                <small class="text-muted">End of chat log</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <nav id="nav" class="navbar navbar-expand fixed-top navbar-dark bg-dark">
+      <a class="navbar-brand" href="/">
+        <img src="/images/logo-inv.png" width="130" height="30" alt="stream.latenight.moe logo">
+      </a>
+
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="/"><i class="fa fa-home"></i></a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="chip bg-dark text-light pointer" data-toggle="modal" data-target="#auth-modal">
+        <img src="/images/logo-cat.png" alt="Logo" width="96" height="96" class="shadow-lg" data-picture>
+        <span data-username>login/register</span>
+      </div>
+    </nav>
+
+    <div class="modal fade text-dark" id="auth-modal" tabindex="-1" role="dialog" aria-labelledby="auth-modal" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">My Account</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div id="auth-alert"></div>
+            <div id="auth-login">
+              <form>
+                <div class="form-group">
+                  <label for="auth-email">Email Address</label>
+                  <input type="email" class="form-control" id="auth-email" placeholder="example@latenight.moe">
+                </div>
+                <div class="form-group">
+                  <label for="auth-password">Password</label>
+                  <input type="password" class="form-control" id="auth-password" placeholder="Password">
+                </div>
+                <div class="text-center">
+                  <button id="auth-login-btn" type="button" class="btn btn-primary">Login</button>
+                  <button id="auth-register-btn" type="button" class="btn btn-info">Register</button>
+                </div>
+              </form>
+            </div>
+            <div id="auth-control" class="collapse">
+              <form>
+                <div class="form-group">
+                  <label for="auth-username">Display Name</label>
+                  <input type="text" class="form-control" id="auth-username" placeholder="leave blank to use default">
+                </div>
+                <div class="form-group">
+                  <label for="auth-picture">Change Picture</label>
+                  <input type="file" class="form-control-file" id="auth-picture">
+                </div>
+                <div class="form-group mt-4 border-top pt-4">
+                  <button id="auth-logout-btn" type="button" class="btn btn-danger">Logout</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!--
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.14.0/js/canvas-to-blob.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-cookie/2.2.0/js.cookie.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.10.1/firebase.js"></script>
+    <script src="https://cdn.firebase.com/libs/firebaseui/2.5.1/firebaseui.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/imagesloaded@4/imagesloaded.pkgd.min.js"></script>
+    <script src="https://unpkg.com/masonry-layout@4.2.1/dist/masonry.pkgd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.min.js"></script>
+    <script src="https://vjs.zencdn.net/5.19/video.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropper/3.1.4/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/0.3.17/marked.min.js"></script>
+    -->
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-lazyload/10.16.2/lazyload.min.js"></script>
+    <!--
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script>
+    -->
+    <!--
+    <script src="https://www.gstatic.com/firebasejs/5.4.2/firebase.js"></script>
+    -->
+
+    <!-- Firebase App is always required and must be first -->
+    <script src="https://www.gstatic.com/firebasejs/5.4.1/firebase-app.js"></script>
+
+    <!-- Add additional services that you want to use -->
+    <script src="https://www.gstatic.com/firebasejs/5.4.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.4.1/firebase-database.js"></script>
+    <!--
+    <script src="https://www.gstatic.com/firebasejs/5.4.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.4.1/firebase-messaging.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.4.1/firebase-functions.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.4.1/firebase-storage.js"></script>
+    -->
+
+    <!--
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    -->
+    <script src="https://unpkg.com/react@16/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.plyr.io/3.4.3/plyr.js"></script>
+    <script src="https://unpkg.com/simplebar@latest/dist/simplebar.js"></script>
+
+    <script type="text/javascript" src="/js/bindWithDelay.js"></script>
+    <script type="text/javascript" src="/js/latenight.ui.js"></script>
+    <script type="text/javascript" src="/js/latenight.darr.js"></script>
+    <script type="text/javascript" src="/js/latenight.helper.js"></script>
+    <script type="text/javascript" src="/js/latenight.firebase.js"></script>
+    <script type="text/javascript" src="/js/latenight.js"></script>
+    
+    <script type="text/javascript">
+    // extras
+    if (!String.prototype.format) {
+      String.prototype.format = function() {
+        var args = arguments;
+        return this.replace(/{(\d+)}/g, function(match, number) { 
+          return typeof args[number] != 'undefined'
+            ? args[number]
+            : match
+          ;
+        });
+      };
+    }
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "<")
+        .replace(/>/g, ">")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+    function escapeHtmlAlt(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "<")
+        .replace(/>/g, ">")
+        .replace(/"/g, "``")
+        .replace(/'/g, "`");
+    }
+    function escapeUrl(unsafe) {
+      return unsafe
+        .replace(/'/g, "&#039;");
+    }
+    </script>
+  </body>
+</html>
