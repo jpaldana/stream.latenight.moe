@@ -34,11 +34,17 @@ var darrGetSeasonCount = function(blob) {
 
 var darrGetAlternateTitles = function(blob) {
   var alts = [];
-  for (var i = 0; i < blob.alternateTitles.length; i++) {
+  if (typeof blob.alternateTitles !== "undefined") for (var i = 0; i < blob.alternateTitles.length; i++) {
+    // sonarr
     var ref = blob.alternateTitles[i];
     if (ref.sceneSeasonNumber == -1) {
       alts.push(ref.title);
     }
+  }
+  if (typeof blob.alternativeTitles !== "undefined") for (var i = 0; i < blob.alternativeTitles.length; i++) {
+    // radarr
+    var ref = blob.alternativeTitles[i];
+    alts.push(ref.title);
   }
   if (alts.length == 0) {
     return "";
@@ -60,13 +66,21 @@ var darrMakeGenreLabels = function(blob) {
 
 var darrMakeMetaLabels = function(blob) {
   var container = $("<div>");
-  var episodeCount = $("<span>")
-    .addClass("font-weight-bold text-muted mr-2")
-    .text("{0} episode{1}".format(
-      blob.episodeCount,
-      (blob.episodeCount > 1) ? "s" : ""
-    ));
-  container.append(episodeCount);
+  if (darrIsSonarr(blob)) {
+    var episodeCount = $("<span>")
+      .addClass("font-weight-bold text-muted mr-2")
+      .text("{0} episode{1}".format(
+        blob.episodeCount,
+        (blob.episodeCount > 1) ? "s" : ""
+      ));
+    container.append(episodeCount);
+  }
+  else {
+    var movieCount = $("<span>")
+      .addClass("font-weight-bold text-muted mr-2")
+      .text("Movie");
+    container.append(movieCount);
+  }
   var rating = $("<span>")
     .addClass("badge badge-dark text-light py-1 px-2")
     .text(blob.certification);
@@ -77,10 +91,17 @@ var darrMakeMetaLabels = function(blob) {
 var darrMakeSearchFields = function(blob) {
   return [
     blob.cleanTitle,
-    blob.alternateTitles.join(" "),
+    (typeof blob.alternateTitles == "undefined") ? blob.alternativeTitles.join(" ") : blob.alternateTitles.join(" "),
     blob.genres.join(" "),
     blob.overview,
     blob.title,
     blob.year
   ].join(" ");
+};
+
+var darrIsSonarr = function(blob) {
+  if (typeof blob.tmdbId !== "undefined") {
+    return false;
+  }
+  return true;
 };

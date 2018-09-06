@@ -3,6 +3,7 @@ var MEDIA_PROXY_API = "https://mei.aldana.io";
 var STORAGE_SUPPORTED = (typeof(Storage) !== "undefined");
 var STORAGE_CACHEHIT_TIME = 300; //-1; //300;
 var DEFAULT_IMAGE = "/images/logo-cat.png";
+var DEFAULT_PLACEHOLDER = "/images/blank-episode.jpg";
 
 var PLAYER_ACTIVE_MEDIA = false;
 var PLAYER_ACTIVE_ROOM = false;
@@ -20,8 +21,14 @@ var initPathname = function() {
       });
       break;
     case 'm': // radarr/movie
-      break;
-    case 'c': // calendar
+      $("[data-group='generic'], [data-group='info']").removeClass("collapse");
+      request({
+        "cid": "listing",
+        "request": "listing"
+      }, buildInfo, ajaxGenericProgress, {
+        "type": "movie",
+        "slug": location.pathname.substring(3)
+      });
       break;
     case 'p': // sonarr/radarr player (interstitial)
       $("[data-group='player']").removeClass("collapse");
@@ -32,14 +39,28 @@ var initPathname = function() {
         room = false;
       }
       var type = (location.pathname[3] === 's') ? "sonarr" : "radarr";
-      request({
-        //"cid": "sonarr_{0}{1}".format(type, id),
-        "request": "episode",
-        "id": id,
-        "type": type
-      }, buildPlayer, ajaxGenericProgress, {
-        "room": room
-      });
+      if (type == "sonarr") {
+        request({
+          "request": "episode",
+          "id": id,
+          "type": type
+        }, buildPlayer, ajaxGenericProgress, {
+          "room": room,
+          "type": type
+        });
+      }
+      else {
+        request({
+          "cid": "listing",
+          "request": "listing",
+          "id": id,
+          "type": type
+        }, buildPlayer, ajaxGenericProgress, {
+          "room": room,
+          "type": type,
+          "id": id // pass this for radarr
+        });
+      }
       break;
     default:
       $("[data-group='listing']").removeClass("collapse");
@@ -71,30 +92,33 @@ var initPathname = function() {
 };
 
 var buildListing = function(data, opts) {
+  console.log("buildListing", data, opts);
   if (typeof opts == "undefined") {
     opts = {};
   }
   var sort = (typeof opts.sort == "string") ? opts.sort : "latest";
+  var joined = data.sonarr.concat(data.radarr);
   switch (sort) {
     case "popularity":
-      data.sonarr.sort(sortPopularity);
+      joined.sort(sortPopularity);
       break;
     case "rating":
-      data.sonarr.sort(sortRating);
+      joined.sort(sortRating);
       break;
     case "alphabetical":
-      data.sonarr.sort(sortAlphabetical);
+      joined.sort(sortAlphabetical);
       break;
     case "latest":
     default:
-      data.sonarr.sort(sortLatest);
+      joined.sort(sortLatest);
       break;
   }
   $("#listing").empty();
-  for (var i = 0; i < data.sonarr.length; i++) {
-    var blob = data.sonarr[i];
+  for (var i = 0; i < joined.length; i++) {
+    var blob = joined[i];
     if (typeof opts.query == "string") {
-      var searchFields = darrMakeSearchFields(blob);
+      // user entered query, check to see if blob is a match
+      var searchFields = darrMakeSearchFields(blob); // concat search strings
       if (searchFields.indexOf(opts.query) == -1) {
         continue;
       }
@@ -102,14 +126,26 @@ var buildListing = function(data, opts) {
     var container = $("<div>")
       .addClass("col-6 col-sm-4 col-md-3 col-lg-2");
     $("#listing").append(container);
-    ReactDOM.render(
-      React.createElement(PosterContainer, {
-        title: blob.title,
-        seasons: darrGetSeasonCount(blob),
-        poster: urlImage("sonarr", blob),
-        link: "/t/" + blob.titleSlug
-      }), container[0]
-    );
+    if (darrIsSonarr(blob)) {
+      ReactDOM.render(
+        React.createElement(PosterContainer, {
+          title: blob.title,
+          seasons: darrGetSeasonCount(blob),
+          poster: urlImage("sonarr", blob),
+          link: "/t/" + blob.titleSlug
+        }), container[0]
+      );
+    }
+    else {
+      ReactDOM.render(
+        React.createElement(PosterContainer, {
+          title: blob.title,
+          seasons: -1,
+          poster: urlImage("radarr", blob),
+          link: "/m/" + blob.titleSlug
+        }), container[0]
+      );
+    }
   }
 
   var lazyLoad = new LazyLoad({
@@ -117,7 +153,6 @@ var buildListing = function(data, opts) {
     load_delay: 500
   });
   // lazyLoad.update();
-  console.log(data);
 };
 
 var buildInfo = function(data, opts) {
@@ -126,6 +161,7 @@ var buildInfo = function(data, opts) {
       buildInfoTv(data, opts);
       break;
     case "movie":
+      buildInfoMovie(data, opts);
       break;
   }
 };
@@ -153,6 +189,33 @@ var buildInfoTv = function(data, opts) {
   }, buildInfoTvEpisodes, ajaxGenericProgress);
 
   console.log(blob);
+};
+var buildInfoMovie = function(data, opts) {
+  var blob = getBlobFromSlug(data.radarr, opts.slug);
+  console.log("buildInfoMovie", data, opts, blob);
+
+  $("#info-poster").css("background-image", "url({0})".format(
+    urlImage("radarr", blob)
+  ));
+  document.title = blob.title + " · stream";
+  $("#info-title").text(blob.title);
+  $("#info-title-alt").text(darrGetAlternateTitles(blob));
+  $("#info-year").text(blob.year);
+  $("#info-meta").html(darrMakeMetaLabels(blob));
+  $("#info-genres").append(darrMakeGenreLabels(blob));
+  $("#info-description").text(blob.overview);
+  $("#backdrop").css("background-image", "url({0})".format(
+    urlImage("radarr", blob, "background")
+  ));
+
+  buildInfoMovieEpisodes(blob);
+  /*
+  request({
+    "cid": "radarr_{0}".format(blob.id),
+    "request": "movie",
+    "id": blob.id
+  }, buildInfoMovieEpisodes, ajaxGenericProgress);
+  */
 };
 var buildInfoTvEpisodes = function(data) {
   console.log(data);
@@ -184,13 +247,14 @@ var buildInfoTvEpisodes = function(data) {
     var episodeContainer = $("<div>")
       .addClass("episode-container col-6 col-md-4 col-lg-3 mb-4")
       .attr("data-type", "tv")
+      .attr("data-series", ref.seriesId)
       .attr("data-id", ref.id); // used by tracker
 
     var thumb = $("<div>")
       .addClass("thumb-image mb-2")
       .attr("data-toggle", "tooltip")
       .attr("title", (typeof ref.overview == "string") ? escapeHtml(ref.overview) : "No synopsis")
-      .attr("src", "images/blank-episode.jpg");
+      .attr("src", DEFAULT_PLACEHOLDER);
     if (ref.hasFile) {
       thumb.attr("data-src", urlThumb("sonarr", ref.id));
       seasonContainersActive[ref.seasonNumber] = true;
@@ -214,6 +278,11 @@ var buildInfoTvEpisodes = function(data) {
           .attr("data-toggle", "tooltip")
           .attr("title", ref.title)
           .text(ref.title)
+          // tracker placeholder
+          .prepend(
+            $("<i>")
+              .addClass("fa fa-circle text-info mx-1 tracker")
+          )
       )
       .append(
         $("<div>")
@@ -240,7 +309,7 @@ var buildInfoTvEpisodes = function(data) {
       episodeContainer.find(".episode-title").prepend(
         $("<i>")
           .addClass("fa fa-close text-danger mr-2")
-      );
+      ).find(".tracker").remove();
     }
 
     seasonContainers[ref.seasonNumber].find(".row").eq(0).append(episodeContainer);
@@ -281,44 +350,216 @@ var buildInfoTvEpisodes = function(data) {
 
   firebaseInitTracker(data);
 };
+var buildInfoMovieEpisodes = function(ref) {
+  console.log("buildInfoMovieEpisodes", ref);
+
+  var episodeContainer = $("<div>")
+    .addClass("episode-container col-6 col-md-4 col-lg-3 mb-4")
+    .attr("data-type", "movie")
+    .attr("data-id", ref.id); // used by tracker
+
+  var thumb = $("<div>")
+    .addClass("thumb-image mb-2")
+    .attr("data-src", DEFAULT_PLACEHOLDER);
+  if (ref.hasFile) {
+    // don't lazyload, only one 'episode'
+    thumb.attr("data-src", urlThumb("radarr", ref.id));
+  }
+  thumb.css("background-image", "url({0})".format(
+    thumb.attr("data-src")
+  ));
+  var thumbContainer = $("<a>")
+    .addClass("thumb-container")
+    .append(thumb);
+  if (ref.hasFile) {
+    thumbContainer
+      .attr("data-logged-in-link", true)
+      .attr("data-href", "/p/r/{0}".format(
+        ref.id
+      ));
+  }
+
+  episodeContainer
+    .append(thumbContainer)
+    .append(
+      $("<small>")
+        .addClass("episode-title ellipsis font-weight-bold")
+        .text(ref.title)
+    )
+    .append(
+      $("<div>")
+        .addClass("d-flex")
+        .append(
+          $("<small>")
+            .addClass("episode-number text-muted mr-auto")
+            .html("<span class='d-none d-md-inline'>Movie")
+        )
+        .append(
+          $("<small>")
+            .addClass("episode-timing text-muted")
+            .text(moment(ref.inCinemas).fromNow())
+        )
+    );
+  if (!ref.hasFile) {
+    episodeContainer.find(".episode-title").prepend(
+      $("<i>")
+        .addClass("fa fa-close text-danger mr-2")
+    );
+  }
+
+  var res = $("<div>");
+  res.append(episodeContainer);
+  $("#info-episode-guide").append(res);
+
+  firebaseInitTracker(ref);
+};
 
 var buildPlayer = function(data, opts) {
   console.log("buildPlayer", data, opts);
   var room = opts.room;
-  if (typeof room == "string") {
-    PLAYER_ACTIVE_ROOM = room;
-    firebaseInitRoom(data, room);
+  var isSonarr = (opts.type == "sonarr") ? true : false;
+
+  $("#player-media").empty();
+  var returnLink = $("#player-nav").find("a").eq(0);
+
+  if (isSonarr) {
+    PLAYER_ACTIVE_MEDIA = data.episode.id;
+    $("[data-episode-title]").html("{0} &mdash; {1}".format(
+      data.episode.series.title,
+      data.episode.title
+    ));
+    $("[data-episode-number]").html("{0} &mdash; {1}&times;{2}".format(
+      (data.episode.absoluteEpisodeNumber == null) ? "Special / Movie" : "Episode " + data.episode.absoluteEpisodeNumber,
+      data.episode.seasonNumber,
+      data.episode.episodeNumber
+    ));
+    
+    $("#backdrop").css("background-image", "url({0})".format(
+      urlImage("sonarr", data.episode.series, "background")
+    ));
+
+    $("#player-media").attr(
+      "poster", urlThumb("sonarr", data.episode.id)
+    );
+    $("#player-media").append(
+      "<source src='{0}' type='video/mp4'></source>".format(
+        escapeUrl(MEDIA_PROXY_API + data.episode.episodeFile.path)
+      )
+    ).append(
+      "<track kind='captions' label='English Subtitles' src='{0}' srclang='en' default>".format(
+        urlCaption("sonarr", data.episode.id)
+      )
+    );
+
+    document.title = data.episode.series.title + " · {0}×{1} ".format(
+      data.episode.seasonNumber,
+      data.episode.episodeNumber
+    ) + data.episode.title + " · stream";
+    
+    returnLink
+      .append(" to <span class='text-info'>{0}</span>".format(
+        data.episode.series.title
+      ))
+      .attr("href", "/t/{0}#season-{1}".format(
+        data.episode.series.titleSlug,
+        data.episode.seasonNumber
+      ));
+      
+    $("#player-guide")
+      .removeClass("collapse")
+      .off("click")
+      .one("click", function() {
+        request({
+          "cid": "sonarr_{0}".format(data.episode.series.id),
+          "request": "episodes",
+          "id": data.episode.series.id
+        }, buildPlayerInfo, ajaxGenericProgress, {
+          "episode_id": data.episode.id
+        });
+      })
+      .on("click", function(e) {
+        e.preventDefault();
+        if ($("#player-log-container").is(":not(.collapse)")) {
+          // swap
+          $("#player-log-container").addClass("collapse");
+          $("#player-guide-container").removeClass("collapse");
+        }
+        else {
+          if ($("#player-media-container").is(".col-12")) {
+            // shrink
+            $("#player-media-container")
+              .removeClass("col-12")
+              .addClass("col-9");
+            $("#player-guide-container")
+              .removeClass("collapse");
+            $("#player-log-container")
+              .addClass("collapse");
+          }
+          else {
+            // expand
+            $("#player-media-container")
+              .removeClass("col-9")
+              .addClass("col-12");
+            $("#player-guide-container")
+              .addClass("collapse");
+            $("#player-log-container")
+              .addClass("collapse");
+          }
+        }
+      });
+    
+    $("#player-guide").trigger("click");
+  }
+  else {
+    data = getBlobFromId(data.radarr, opts.id);
+    console.log("buildPlayer, slugged", data);
+    PLAYER_ACTIVE_MEDIA = data.id;
+    
+    $("[data-episode-title]").html(data.title);
+    $("[data-episode-number]").html("Movie");
+    
+    $("#backdrop").css("background-image", "url({0})".format(
+      urlImage("radarr", data, "background")
+    ));
+    
+    $("#player-media").attr(
+      "poster", urlThumb("radarr", data.id)
+    );
+    $("#player-media").append(
+      "<source src='{0}' type='video/mp4'></source>".format(
+        escapeUrl(MEDIA_PROXY_API + data.path + "/" + data.movieFile.relativePath)
+      )
+    ); // no caption support (yet)
+
+    document.title = data.title + " · stream";
+    
+    returnLink
+      .append(" to <span class='text-info'>{0}</span>".format(
+        data.title
+      ))
+      .attr("href", "/m/{0}".format(
+        data.titleSlug
+      ));
+
+    $("#player-guide")
+      .addClass("collapse");
   }
 
-  PLAYER_ACTIVE_MEDIA = data.episode.id;
-  $("[data-episode-title]").html("{0} &mdash; {1}".format(
-    data.episode.series.title,
-    data.episode.title
-  ));
-  $("[data-episode-number]").html("{0} &mdash; {1}&times;{2}".format(
-    (data.episode.absoluteEpisodeNumber == null) ? "Special / Movie" : "Episode " + data.episode.absoluteEpisodeNumber,
-    data.episode.seasonNumber,
-    data.episode.episodeNumber
-  ));
+  if (typeof room == "string") {
+    PLAYER_ACTIVE_ROOM = room;
+    firebaseInitRoom(data, room, isSonarr);
+    /*
+    if (isSonarr) {
+      firebaseInitRoom(data, room);
+    }
+    else {
+      // radarr wip
+      firebaseInitRoom(data, room);
+    }
+    */
+  }
 
-  var isSonarr = (typeof data.episode == "object") ? true : false;
-  $("#backdrop").css("background-image", "url({0})".format(
-    urlImage("sonarr", data.episode.series, "background")
-  ));
-  $("#player-media").empty();
-  $("#player-media").attr(
-    "poster", urlThumb("sonarr", data.episode.id)
-  );
-  $("#player-media").append(
-    "<source src='{0}' type='video/mp4'></source>".format(
-      escapeUrl(MEDIA_PROXY_API + data.episode.episodeFile.path)
-    )
-  ).append(
-    "<track kind='captions' label='English Subtitles' src='{0}' srclang='en' default>".format(
-      urlCaption("sonarr", data.episode.id)
-    )
-  );
-  const player = new Plyr("#player-media", {
+  plyr = new Plyr("#player-media", {
     "debug": false,
     "captions": {
       "active": true,
@@ -326,64 +567,6 @@ var buildPlayer = function(data, opts) {
     }
   });
 
-  if (isSonarr) {
-    document.title = data.episode.series.title + " · {0}×{1} ".format(
-      data.episode.seasonNumber,
-      data.episode.episodeNumber
-    ) + data.episode.title + " · stream";
-  }
-
-  var returnLink = $("#player-nav").find("a").eq(0);
-  returnLink
-    .append(" to <span class='text-info'>{0}</span>".format(
-      data.episode.series.title
-    ))
-    .attr("href", "/t/{0}#season-{1}".format(
-      data.episode.series.titleSlug,
-      data.episode.seasonNumber
-    ));
-
-  $("#player-guide")
-    .off("click")
-    .one("click", function() {
-      request({
-        "cid": "sonarr_{0}".format(data.episode.series.id),
-        "request": "episodes",
-        "id": data.episode.series.id
-      }, buildPlayerInfo, ajaxGenericProgress, {
-        "episode_id": data.episode.id
-      });
-    })
-    .on("click", function(e) {
-      e.preventDefault();
-      if ($("#player-log-container").is(":not(.collapse)")) {
-        // swap
-        $("#player-log-container").addClass("collapse");
-        $("#player-guide-container").removeClass("collapse");
-      }
-      else {
-        if ($("#player-media-container").is(".col-12")) {
-          // shrink
-          $("#player-media-container")
-            .removeClass("col-12")
-            .addClass("col-9");
-          $("#player-guide-container")
-            .removeClass("collapse");
-          $("#player-log-container")
-            .addClass("collapse");
-        }
-        else {
-          // expand
-          $("#player-media-container")
-            .removeClass("col-9")
-            .addClass("col-12");
-          $("#player-guide-container")
-            .addClass("collapse");
-          $("#player-log-container")
-            .addClass("collapse");
-        }
-      }
-    });
   $("#player-log")
     .on("click", function(e) {
       e.preventDefault();
@@ -419,7 +602,11 @@ var buildPlayer = function(data, opts) {
   $("[data-toggle='tooltip']").tooltip({
     html: true
   });
-  $("#player-guide").trigger("click");
+
+  if (!isSonarr) {
+    // since there's no episode guide hook for radarr, init tracker now
+    firebaseInitTracker(data);
+  }
 };
 
 var buildPlayerInfo = function(data, opts) {

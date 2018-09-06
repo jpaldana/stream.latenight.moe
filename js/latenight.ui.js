@@ -77,6 +77,10 @@ var PosterContainer = (function(_React$Component) {
           backgroundImage: "url(" + this.props.poster + ")"
         };
         var seasonText = this.props.seasons > 1 ? "seasons" : "season";
+        if (this.props.seasons == -1) {
+          this.props.seasons = "Movie";
+          seasonText = "";
+        }
         return React.createElement(
           "div",
           { className: "poster-container" },

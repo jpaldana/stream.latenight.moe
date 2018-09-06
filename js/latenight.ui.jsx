@@ -4,6 +4,10 @@ class PosterContainer extends React.Component {
       backgroundImage: `url(${this.props.poster})`
     };
     var seasonText = (this.props.seasons > 1) ? "seasons" : "season";
+    if (this.props.seasons == -1) {
+      this.props.seasons = "Movie";
+      seasonText = "";
+    }
     return (
       <div className="poster-container">
         <a href={this.props.link}>

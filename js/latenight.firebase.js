@@ -10,7 +10,8 @@ var config = {
 firebase.initializeApp(config);
 
 var TIMEUPDATE_BEACON_INTERVAL = 5;
-var TIMEUPDATE_SYNC_ACCURACY = 5;
+var TIMEUPDATE_SYNC_ACCURACY = 20;
+var TIMEUPDATE_TRACKER_INIT = false;
 var CHAT_TIMEOUT = 5000;
 var firebaseUser = false;
 var firebaseDelayedRoomData = false;
@@ -35,7 +36,7 @@ firebase.auth().onAuthStateChanged(function(user) {
     $("[data-logged-in]").removeClass("collapse");
     $("[data-not-logged-in]").addClass("collapse");
     if (firebaseDelayedRoomData) {
-      firebaseInitRoom(firebaseDelayedRoomData.data, firebaseDelayedRoomData.room);
+      firebaseInitRoom(firebaseDelayedRoomData.data, firebaseDelayedRoomData.room, firebaseDelayedRoomData.isSonarr);
     }
     if (firebaseDelayedTrackerData) {
       firebaseInitTracker(firebaseDelayedTrackerData);
@@ -54,21 +55,22 @@ firebase.auth().onAuthStateChanged(function(user) {
   }
 });
 
-var firebaseInitRoom = function(data, room) {
+var firebaseInitRoom = function(data, room, isSonarr) {
   if (!firebaseUser) {
-    console.log("firebaseInitRoom", "init room but not logged in, delaying...");
+    console.log("firebaseInitRoom", "init room but not (yet) logged in, delaying...");
     firebaseDelayedRoomData = {
       "data": data,
-      "room": room
+      "room": room,
+      "isSonarr": isSonarr
     };
     return;
   }
   firebaseDelayedRoomData = false;
-  console.log("firebaseInitRoom", data);
+  console.log("firebaseInitRoom", data, room, isSonarr);
 
   // update room data (if host)
   if (firebaseUser.uid == room) {
-    firebaseUpdateRoomMetadata(data, room);
+    firebaseUpdateRoomMetadata(data, room, isSonarr);
     firebase.database().ref("tenants/{0}".format(
       room
     )).set({});
@@ -88,45 +90,62 @@ var firebaseInitRoom = function(data, room) {
 
   firebase.database().ref("room/{0}".format(room)).on("value", function(snapshot) {
     var data = snapshot.val();
-    console.log("room ref received", data);
+    //console.log("room ref received", data);
 
+    // TODO check if sonarr or radarr in addition to correct ID
     if (PLAYER_ACTIVE_MEDIA !== data.active) {
       // old link / changed media id
       //console.log("Old link");
       if (PLAYER_ACTIVE_ROOM !== firebaseUser.uid) {
-        location.href = "/p/s/{0}/{1}".format(
-          data.active,
-          PLAYER_ACTIVE_ROOM
-        );
+        //console.log("old link!", PLAYER_ACTIVE_MEDIA, data.active);
+        if (confirm("The host of this room has switched to a different video. Press OK to continue or Cancel to stay on this video.")) {
+          location.href = "/p/{0}/{1}/{2}".format(
+            (data.sonarr) ? "s" : "r",
+            data.active,
+            PLAYER_ACTIVE_ROOM
+          );
+        }
+        else {
+          location.href = "/p/{0}/{1}/{2}".format(
+            (data.sonarr) ? "s" : "r",
+            PLAYER_ACTIVE_MEDIA,
+            firebaseUser.uid
+          );
+        }
       }
       return;
     }
 
     if (Math.abs(player.currentTime - data.position) > TIMEUPDATE_SYNC_ACCURACY) {
+      console.log("update self time");
       // update self time
       firebaseIgnoreEvent = true;
       player.currentTime = data.position;
     }
     if (player.paused !== data.paused) {
+      console.log("toggle pause", player.paused, data.paused);
       // (un)pause
       firebaseIgnoreEvent = true;
       if (data.paused) {
         player.pause();
       }
       else {
+        player.play();
         var promise = player.play();
         if (promise !== undefined) {
           promise.then(_ => {
             // normal
           }).catch(error => {
+            console.log("didn't actually play?");
             // didn't actually play
             firebasePlayerEvent(99, player.currentTime);
-            firebasePlayerControl(1, player.currentTime);
+            firebasePlayerControl(true, player.currentTime);
             firebaseRoomMessage("[no interaction]");
           });
         }
       }
     }
+    firebaseIgnoreEvent = false;
 
     if (data.chat && data.chat.message !== firebasePreviousMessage) {
       firebasePreviousMessage = data.chat.message;
@@ -276,31 +295,40 @@ var firebaseInitRoom = function(data, room) {
     firebasePlayerEvent(2, player.currentTime);
   });
   $("#player-media").on("play", function() {
-    firebasePlayerControl(0, player.currentTime);
+    firebasePlayerControl(false, player.currentTime);
   });
   $("#player-media").on("pause", function() {
     firebasePlayerEvent(3, player.currentTime);
-    firebasePlayerControl(1, player.currentTime);
+    firebasePlayerControl(true, player.currentTime);
   });
   $("#player-media").on("timeupdate", function() {
     var now = moment().unix();
     if (now - firebaseLastTimeUpdate > TIMEUPDATE_BEACON_INTERVAL) {
       firebaseLastTimeUpdate = now;
       firebasePlayerEvent(2, player.currentTime);
-      firebaseTrackEpisode(data, player.currentTime, player.duration);
+      if (darrIsSonarr(data)) {
+        firebaseTrackEpisode(data, player.currentTime, player.duration);
+      }
+      else {
+        firebaseTrackMovie(data, player.currentTime, player.duration);
+      }
+      if (PLAYER_ACTIVE_ROOM == firebaseUser.uid) {
+        firebasePlayerControl(player.paused, player.currentTime);
+      }
     }
   });
   $("#player-media").on("seeked", function() {
     firebasePlayerEvent(4, player.currentTime);
-    firebasePlayerControl(1, player.currentTime);
+    firebasePlayerControl(true, player.currentTime);
   });
 };
-var firebaseUpdateRoomMetadata = function(data, room) {
+var firebaseUpdateRoomMetadata = function(data, room, isSonarr) {
   firebase.database().ref("room/{0}".format(room)).set({
     lastUpdate: moment().unix(),
-    active: data.episode.id,
+    active: (isSonarr) ? data.episode.id : data.id,
+    sonarr: isSonarr,
     position: 0,
-    paused: 1,
+    paused: true,
     chat: false
   });
 };
@@ -317,6 +345,7 @@ var firebasePlayerEvent = function(a, b) {
   });
 };
 var firebasePlayerControl = function(paused, position) {
+  if (firebaseIgnoreEvent) return;
   firebase.database().ref("room/{0}".format(
     PLAYER_ACTIVE_ROOM
   )).update({
@@ -345,52 +374,173 @@ var firebaseInitTracker = function(data) {
   }
   firebaseDelayedTrackerData = false;
 
-  // assume sonarr for now (type=sonarr)
-  console.log("firebaseInitTracker", data);
-  
-  var seriesId = data.episodes[0].seriesId; // pop a seriesId
-  firebase.database().ref("tracker/{0}/{1}".format(
-    firebaseUser.uid,
-    seriesId
-  )).once("value", function(snapshot) {
-    var data = snapshot.val();
-    console.log("tracker ref", data);
+  var isSonarr = darrIsSonarr(data);
+  console.log("firebaseInitTracker", data, isSonarr);
 
-    for (var id in data) {
-      var ref = data[id];
-      var target = $("[data-id='{0}']".format(id));
-      target.find(".tracker").remove();
+  if (isSonarr) {
+    var seriesId = data.episodes[0].seriesId; // pop a seriesId
+    firebase.database().ref("tracker/tv/{0}/{1}".format(
+      firebaseUser.uid,
+      seriesId
+    )).on("value", function(snapshot) {
+      var data = snapshot.val();
+      //console.log("tracker ref", data);
+  
+      for (var id in data) {
+        var ref = data[id];
+        var target = $("[data-id='{0}']".format(id));
+        //target.find(".tracker").remove();
+        if (ref.completed) {
+          target.find(".tracker")
+            .removeClass("fa-circle fa-hourglass text-info text-warning")
+            .addClass("fa-check text-success");
+        }
+        else if (typeof ref.position !== "undefined" && ref.position == 0) {
+          target.find(".tracker")
+            .removeClass("fa-hourglass fa-check text-warning text-success")
+            .addClass("fa-circle text-info");
+        }
+        else {
+          target.find(".tracker")
+            .removeClass("fa-circle fa-check text-info text-success")
+            .addClass("fa-hourglass text-warning");
+          if (!TIMEUPDATE_TRACKER_INIT && PLAYER_ACTIVE_ROOM == firebaseUser.uid && PLAYER_ACTIVE_MEDIA == id) {
+            // resume pos
+            TIMEUPDATE_TRACKER_INIT = true;
+            player.currentTime = ref.position;
+          }
+        }
+      }
+    });
+  }
+  else {
+    var movieId = data.id;
+    firebase.database().ref("tracker/movie/{0}/{1}".format(
+      firebaseUser.uid,
+      movieId
+    )).on("value", function(snapshot) {
+      var ref = snapshot.val();
+      //console.log("tracker ref", ref);
+  
+      var target = $("[data-id='{0}']".format(movieId));
+      //target.find(".tracker").remove();
       if (ref.completed) {
-        target.find(".episode-title").prepend(
-          $("<i>")
-            .addClass("fa fa-check text-success mr-2 tracker")
-        );
+        target.find(".tracker")
+          .removeClass("fa-circle fa-hourglass text-info text-warning")
+          .addClass("fa-check text-success");
       }
       else {
-        target.find(".episode-title").prepend(
-          $("<i>")
-            .addClass("fa fa-hourglass text-warning mr-2 tracker")
-        );
-        if (PLAYER_ACTIVE_ROOM == firebaseUser.uid) {
+        target.find(".tracker")
+          .removeClass("fa-circle fa-check text-info text-success")
+          .addClass("fa-hourglass text-warning");
+        if (!TIMEUPDATE_TRACKER_INIT && PLAYER_ACTIVE_ROOM == firebaseUser.uid) {
           // resume pos
+          TIMEUPDATE_TRACKER_INIT = true;
           player.currentTime = ref.position;
+        }
+      }
+    });
+  }
+
+  // handle clicks!
+  console.log("tracker hook");
+  $(".tracker").on("click", function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    // parent should be .episode-container with [data-type] and [data-id]
+    var parent = $(this).parent().parent();
+    if (parent.is(".episode-container[data-type][data-id]")) {
+      var isSonarr = (parent.attr("data-type") == "tv") ? true : false;
+      var id = parent.attr("data-id");
+
+      if ($(this).hasClass("text-info") || $(this).hasClass("text-warning")) {
+        // new > completed
+        console.log("change to complete");
+        /*
+        $(this)
+          .removeClass("text-info fa-circle")
+          .addClass("text-success fa-check");
+        */
+        if (isSonarr) {
+          firebaseTrackEpisode({
+            episode: {
+              seriesId: parent.attr("data-series"),
+              id: id
+            }
+          }, true);
+        }
+        else {
+          firebaseTrackMovie({
+            id: id,
+          }, true);
+        }
+      }
+      else if ($(this).hasClass("text-success")) {
+        // completed > new
+        console.log("change to new");
+        /*
+        $(this)
+          .removeClass("text-success fa-check text-warning fa-hourglass")
+          .addClass("text-info fa-circle");
+        */
+        if (isSonarr) {
+          firebaseTrackEpisode({
+            episode: {
+              seriesId: parent.attr("data-series"),
+              id: id
+            }
+          }, false);
+        }
+        else {
+          firebaseTrackMovie({
+            id: id
+          }, false);
         }
       }
     }
   });
 
+  // handle 'secret' buttons
+  $("#tracker-mark-new").on("click", function() {
+    if (confirm("Mark all to new?")) {
+      $(".tracker.text-warning, .tracker.text-success").trigger("click");
+    }
+  });
+  $("#tracker-mark-complete").on("click", function() {
+    if (confirm("Mark all to complete?")) {
+      $(".tracker.text-warning, .tracker.text-info").trigger("click");
+    }
+  });
 };
 var firebaseTrackEpisode = function(data, time, total) {
-  firebase.database().ref("tracker/{0}/{1}/{2}".format(
-    firebaseUser.uid,
-    data.episode.seriesId,
-    data.episode.id
-  )).update({
+  var val = (typeof time == "boolean") ? {
+    completed: time
+  } : {
     position: time,
     total: total,
     completed: (total - time > 120) ? false : true,
     date: moment().unix()
-  });
+  };
+  firebase.database().ref("tracker/tv/{0}/{1}/{2}".format(
+    firebaseUser.uid,
+    data.episode.seriesId,
+    data.episode.id
+  )).update(val);
+  console.log("update to", val);
+};
+var firebaseTrackMovie = function(data, time, total) {
+  var val = (typeof time == "boolean") ? {
+    completed: time
+  } : {
+    position: time,
+    total: total,
+    completed: (total - time > 600) ? false : true,
+    date: moment().unix()
+  };
+  firebase.database().ref("tracker/movie/{0}/{1}".format(
+    firebaseUser.uid,
+    data.id
+  )).update(val);
 };
 
 var firebasePictureUpdate = function(data) {

@@ -70,6 +70,13 @@ var getBlobFromSlug = function(data, titleSlug) {
     }
   }
 }
+var getBlobFromId = function(data, id) {
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].id == id) {
+      return data[i];
+    }
+  }
+}
 
 /* localStorage */
 var cacheCheck = function(cid) {
@@ -104,9 +111,7 @@ var urlImage = function(source, blob, imageType) {
   }
 };
 var urlThumb = function(source, id) {
-  // TODO
-  //return LATENIGHT_API + "?request=thumb&source={0}&id={1}".format(source, id);
-  return "https://dev6-api.latenight.moe/twilight/Thumbnail.php?host={0}&id={1}".format(source, id);
+  return LATENIGHT_API + "?request=thumb&source={0}&id={1}".format(source, id);
 };
 var urlCaption = function(source, id) {
   // TODO
@@ -114,8 +119,8 @@ var urlCaption = function(source, id) {
 };
 
 var sortLatest = function(a, b) {
-  var aa = (typeof a.previousAiring == "string") ? a.previousAiring : (typeof a.firstAired == "string") ? a.firstAired : "";
-  var bb = (typeof b.previousAiring == "string") ? b.previousAiring : (typeof b.firstAired == "string") ? b.firstAired : "";
+  var aa = (typeof a.previousAiring == "string") ? a.previousAiring : (typeof a.firstAired == "string") ? a.firstAired : (typeof a.inCinemas == "string") ? a.inCinemas : "";
+  var bb = (typeof b.previousAiring == "string") ? b.previousAiring : (typeof b.firstAired == "string") ? b.firstAired : (typeof a.inCinemas == "string") ? a.inCinemas : "";
   return bb.localeCompare(aa);
 };
 var sortAlphabetical = function(a, b) {
