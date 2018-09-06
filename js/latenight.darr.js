@@ -96,7 +96,7 @@ var darrMakeSearchFields = function(blob) {
     blob.overview,
     blob.title,
     blob.year
-  ].join(" ");
+  ].join(" ").toLocaleLowerCase();
 };
 
 var darrIsSonarr = function(blob) {

@@ -1,4 +1,4 @@
-var LATENIGHT_API = "https://api.aldana.io/api.latenight.stream.php";
+var LATENIGHT_API = "https://public-api.aldana.io/stream";
 var MEDIA_PROXY_API = "https://mei.aldana.io";
 var STORAGE_SUPPORTED = (typeof(Storage) !== "undefined");
 var STORAGE_CACHEHIT_TIME = 300; //-1; //300;
@@ -119,7 +119,7 @@ var buildListing = function(data, opts) {
     if (typeof opts.query == "string") {
       // user entered query, check to see if blob is a match
       var searchFields = darrMakeSearchFields(blob); // concat search strings
-      if (searchFields.indexOf(opts.query) == -1) {
+      if (searchFields.indexOf(opts.query.toLocaleLowerCase()) == -1) {
         continue;
       }
     }

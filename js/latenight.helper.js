@@ -102,16 +102,34 @@ var urlImage = function(source, blob, imageType) {
   }
   switch (imageType) {
     case "background":
-      return LATENIGHT_API + "?request=image&source={0}&id=".format(source) + blob.id + "&image=" + darrGetImageBackground(blob);
-      break;
+      //return LATENIGHT_API + "?request=image&source={0}&id=".format(source) + blob.id + "&image=" + darrGetImageBackground(blob);
+      return "{0}/request=image&source={1}&id={2}&image={3}/{4}".format(
+        LATENIGHT_API,
+        source,
+        blob.id,
+        darrGetImageBackground(blob),
+        "background.jpg"
+      );
     case "poster":
     default:
-      return LATENIGHT_API + "?request=image&source={0}&id=".format(source) + blob.id + "&image=" + darrGetImagePoster(blob);
-      break;
+      //return LATENIGHT_API + "?request=image&source={0}&id=".format(source) + blob.id + "&image=" + darrGetImagePoster(blob);
+      return "{0}/request=image&source={1}&id={2}&image={3}/{4}".format(
+        LATENIGHT_API,
+        source,
+        blob.id,
+        darrGetImagePoster(blob),
+        "poster.jpg"
+      );
   }
 };
 var urlThumb = function(source, id) {
-  return LATENIGHT_API + "?request=thumb&source={0}&id={1}".format(source, id);
+  //return LATENIGHT_API + "?request=thumb&source={0}&id={1}".format(source, id);
+  return "{0}/request=thumb&source={1}&id={2}/{3}".format(
+    LATENIGHT_API,
+    source,
+    id,
+    "thumb.jpg"
+  );
 };
 var urlCaption = function(source, id) {
   // TODO
